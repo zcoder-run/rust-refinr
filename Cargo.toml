@@ -1,6 +1,6 @@
 [package]
 name = "refinr"
-version = "0.0.1"
+version = "0.0.2-WIP"
 description = "Optimize content for AI - Fetch, sanitize, and map content to make it more useful for AI."
 edition = "2024"
 license = "MIT OR Apache-2.0"
