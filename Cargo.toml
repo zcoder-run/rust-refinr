@@ -20,7 +20,7 @@ unused = { level = "allow", priority = -1 } # For exploratory dev.
 # -- Async
 tokio = { version = "1", features = ["full"] }
 # -- AI
-genai = "0.7.0-beta"
+genai = "0.7.0-rc"
 # -- Serde
 serde = { version = "1", features = ["derive"] }
 serde_with = { version = "3", features = ["macros"] }
