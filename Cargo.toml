@@ -1,0 +1,41 @@
+[package]
+name = "refinr"
+version = "0.0.1"
+description = "Optimize content for AI - Fetch, sanitize, and map content to make it more useful for AI."
+edition = "2024"
+license = "MIT OR Apache-2.0"
+keywords = ["coding-harness","coding-ai"]
+authors = ["Jeremy Chone"]
+homepage = "https://github.com/zcoder-run/rust-refinr"
+repository = "https://github.com/zcoder-run/rust-refinr"
+
+[lib]
+doctest = false
+
+[lints.rust]
+unsafe_code = "forbid"
+unused = { level = "allow", priority = -1 } # For exploratory dev.
+
+[dependencies]
+# -- Async
+tokio = { version = "1", features = ["full"] }
+# -- AI
+genai = "0.7.0-beta"
+# -- Serde
+serde = { version = "1", features = ["derive"] }
+serde_with = { version = "3", features = ["macros"] }
+# -- Content Formats
+aho-corasick = "1.1.5"
+htmlr = "0.1"
+markex = "0.3.0"
+serde_json = "1"
+# -- Encoding
+blake3 = "1.8.7"
+bs58 = "0.5.1"
+# -- FS & Http
+reqwest = "0.13"
+simple-fs = "0.12"
+
+# -- Others
+derive_more = { version = "2", features = ["from", "display"] }
+macro_rules_attribute = "0.2"
