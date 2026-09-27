@@ -1124,6 +1124,7 @@ https://docs.typesafe.ai/doc/page2.md#anchor
 			content_map: dest.join("content-map.json"),
 			concurrency: 2,
 			resume: false,
+			genai_client: None,
 			progress,
 		};
 

@@ -1,6 +1,6 @@
 use super::sanitizr_journal::{HeaderInfo, SanitizeJournal};
 use super::sanitizr_prompt::{parse_sanitized_content, render_sanitize_prompt, resolve_instructions};
-use crate::mapr::{is_text_mappable, select_active_ai_client};
+use crate::mapr::{is_text_mappable, select_active_ai_client_with_genai_client};
 use crate::process::pipeline::{ArtifactItem, ArtifactSet, StageOutput, WorkflowContext};
 use crate::process::{ItemId, ProcessStage, SanitizePrompt};
 use crate::support::{hash_bytes, run_bounded};
@@ -113,7 +113,7 @@ pub(crate) async fn execute_sanitize(
 		}
 	}
 
-	let ai_client = select_active_ai_client(&config.model);
+	let ai_client = select_active_ai_client_with_genai_client(&config.model, context.genai_client.as_ref());
 	let tasks = pending_items.into_iter().map(|(item, id, content, input_hash)| {
 		let ai_client = ai_client.clone();
 		let journal = journal.clone();

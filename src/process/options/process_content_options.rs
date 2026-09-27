@@ -33,6 +33,8 @@ pub struct ProcessContentOptions {
 	pub sanitize_model: Option<String>,
 	/// Model override for Map.
 	pub map_model: Option<String>,
+	/// Optional Genai client used by the default AI operations.
+	pub genai_client: Option<genai::Client>,
 	/// Custom Sanitize instructions replacing the built-in ones.
 	pub sanitize_prompt: Option<SanitizePrompt>,
 	/// Reuses successful unchanged stage work when possible.
@@ -62,6 +64,7 @@ impl ProcessContentOptions {
 			model: None,
 			sanitize_model: None,
 			map_model: None,
+			genai_client: None,
 			sanitize_prompt: None,
 			resume: false,
 			concurrency: 8,
@@ -167,6 +170,12 @@ impl ProcessContentOptions {
 	/// Sets the model used by the Map stage.
 	pub fn with_map_model(mut self, model: impl Into<String>) -> Self {
 		self.map_model = Some(model.into());
+		self
+	}
+
+	/// Sets the Genai client used by the default AI operations.
+	pub fn with_genai_client(mut self, genai_client: genai::Client) -> Self {
+		self.genai_client = Some(genai_client);
 		self
 	}
 

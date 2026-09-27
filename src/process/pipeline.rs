@@ -22,6 +22,7 @@ pub(crate) struct WorkflowContext {
 	pub(crate) journal: SPath,
 	pub(crate) content_map: SPath,
 	pub(crate) concurrency: usize,
+	pub(crate) genai_client: Option<genai::Client>,
 	pub(crate) resume: bool,
 	pub(crate) progress: ProcessProgressPublisher,
 }

@@ -70,7 +70,8 @@ async fn test_process_content_map_with_stub_publishes_output_and_content_map() -
 	let options = ProcessContentOptions::new(path_text(&source_root))
 		.with_dest(path_text(&destination))
 		.with_map(true)
-		.with_model("stub-model");
+		.with_model("stub-model")
+		.with_genai_client(genai::Client::new()?);
 
 	// -- Exec
 	let mut handle = process_content(options).await?;

@@ -32,6 +32,7 @@ pub async fn process_content(options: ProcessContentOptions) -> Result<ProcessCo
 		journal: layout.journal,
 		content_map: layout.content_map,
 		concurrency: options.concurrency,
+		genai_client: options.genai_client.clone(),
 		resume: options.resume,
 		progress,
 	};

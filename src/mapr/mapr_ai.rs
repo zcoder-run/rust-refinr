@@ -227,20 +227,50 @@ pub fn get_active_ai_selector() -> MaprAiSelector {
 
 /// Select a client using `selector`, or the active process-wide selector when absent.
 pub fn select_ai_client(selector: Option<&MaprAiSelector>, model: &str) -> Arc<dyn MaprAiClient> {
-	if let Some(explicit) = selector {
-		explicit.create_client(model)
-	} else {
-		let active = get_active_ai_selector();
-		active.create_client(model)
+	select_ai_client_with_genai_client(selector, model, None)
+}
+
+/// Select a client, supplying the configured Genai client to the real provider implementation.
+pub fn select_ai_client_with_genai_client(
+	selector: Option<&MaprAiSelector>,
+	model: &str,
+	genai_client: Option<&GenaiClient>,
+) -> Arc<dyn MaprAiClient> {
+	let selector = selector.cloned().unwrap_or_else(get_active_ai_selector);
+	match selector {
+		MaprAiSelector::Real => {
+			let client: Arc<dyn MaprAiClient> = Arc::new(create_genai_ai_client(model, genai_client));
+			client
+		}
+		selector => selector.create_client(model),
 	}
 }
 
 /// Select a client using the active process-wide selector.
 pub fn select_active_ai_client(model: &str) -> Arc<dyn MaprAiClient> {
-	select_ai_client(None, model)
+	select_active_ai_client_with_genai_client(model, None)
+}
+
+/// Select a client using the active selector and optional configured Genai client.
+pub fn select_active_ai_client_with_genai_client(
+	model: &str,
+	genai_client: Option<&GenaiClient>,
+) -> Arc<dyn MaprAiClient> {
+	select_ai_client_with_genai_client(None, model, genai_client)
 }
 
 // endregion: --- Support
+
+fn create_genai_ai_client(model: &str, genai_client: Option<&GenaiClient>) -> GenaiAiClient {
+	if let Some(genai_client) = genai_client {
+		GenaiAiClient {
+			model: model.to_owned(),
+			client: Some(genai_client.clone()),
+		}
+	} else {
+		GenaiAiClient::new(model)
+	}
+}
 
 // region:    --- Tests
 
@@ -285,9 +315,34 @@ mod tests {
 		Ok(())
 	}
 
+	#[test]
+	fn test_mapr_ai_genai_ai_client_uses_configured_client() -> crate::Result<()> {
+		let configured_client =
+			GenaiClient::new().map_err(|error| crate::Error::custom(error.to_string()))?;
+		let client = create_genai_ai_client("configured-model", Some(&configured_client));
+
+		assert_eq!(client.model(), "configured-model");
+		assert!(client.client.is_some());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_mapr_ai_genai_ai_client_without_configured_client_uses_default() {
+		let client = create_genai_ai_client("default-model", None);
+
+		assert_eq!(client.model(), "default-model");
+	}
+
 	#[tokio::test]
 	async fn test_selector_and_active_override() -> crate::Result<()> {
-		let client = select_ai_client(Some(&MaprAiSelector::Stub), "gpt-5");
+		let configured_genai_client =
+			GenaiClient::new().map_err(|error| crate::Error::custom(error.to_string()))?;
+		let client = select_ai_client_with_genai_client(
+			Some(&MaprAiSelector::Stub),
+			"gpt-5",
+			Some(&configured_genai_client),
+		);
 		let response = client.complete("test prompt").await?;
 		assert!(response.content.contains("<FILE_INFO>"));
 

@@ -32,7 +32,8 @@ async fn test_process_sanitize_cleans_text_and_copies_ineligible_items() -> Resu
 	let options = ProcessContentOptions::new(path_text(&source_root))
 		.with_dest(path_text(&destination))
 		.with_sanitize(true)
-		.with_model("stub-model");
+		.with_model("stub-model")
+		.with_genai_client(genai::Client::new()?);
 
 	// -- Exec
 	let mut handle = process_content(options).await?;

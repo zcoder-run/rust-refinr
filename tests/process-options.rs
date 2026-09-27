@@ -10,6 +10,7 @@ fn test_process_options_defaults() -> Result<()> {
 	// -- Check
 	assert_eq!(options.source, "tests-data/.tmp/options-source");
 	assert!(options.destination.is_none());
+	assert!(options.genai_client.is_none());
 	assert!(options.fetch);
 	assert!(options.include.is_empty());
 	assert!(options.exclude.is_empty());
@@ -45,6 +46,7 @@ fn test_process_options_flat_chainable_configuration() -> Result<()> {
 		.with_sanitize(true)
 		.with_map(true)
 		.with_model("default-model")
+		.with_genai_client(genai::Client::new()?)
 		.with_sanitize_model("sanitize-model")
 		.with_map_model("map-model")
 		.with_sanitize_prompt(SanitizePrompt::content("Custom instructions"))
@@ -57,6 +59,7 @@ fn test_process_options_flat_chainable_configuration() -> Result<()> {
 	assert_eq!(options.include, vec!["**/*.md", "README.md", "guide/*.md", "docs/*.md"]);
 	assert_eq!(options.exclude, vec!["target/**", "tmp/**", "cache/**", "vendor/**"]);
 	assert_eq!(options.format, FetchFormat::Slim);
+	assert!(options.genai_client.is_some());
 	assert_eq!(options.max_depth, 3);
 	assert!(!options.llms);
 	assert!(options.sanitize);

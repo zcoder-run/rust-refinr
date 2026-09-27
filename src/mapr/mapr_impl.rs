@@ -1,7 +1,7 @@
 use crate::mapr::{
 	ContentMapDocument, FileMapEntry, FileMapMetadata, JournalHeader, JournalRecord, MapConfig, PROMPT_VERSION,
 	init_or_load_journal, is_text_mappable, parse_file_info, publish_content_map, remove_journal, render_file_prompt,
-	select_active_ai_client,
+	select_active_ai_client_with_genai_client,
 };
 use crate::process::pipeline::{ArtifactItem, ArtifactSet, StageOutput, WorkflowContext};
 use crate::process::{ItemId, ProcessStage};
@@ -117,7 +117,7 @@ pub(crate) async fn execute_content_map(
 	.with_file_metadata(file_metadata.clone());
 	publish_content_map(context.content_map.as_std_path(), &partial_document)?;
 
-	let ai_client = select_active_ai_client(&options.model);
+	let ai_client = select_active_ai_client_with_genai_client(&options.model, context.genai_client.as_ref());
 	let tasks = pending_items
 		.into_iter()
 		.map(|(item, id, relative_path, source_hash, content)| {

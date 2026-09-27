@@ -157,6 +157,7 @@ pub struct ProcessContentOptions {
     pub model: Option<String>,
     pub sanitize_model: Option<String>,
     pub map_model: Option<String>,
+    pub genai_client: Option<genai::Client>,
     pub sanitize_prompt: Option<SanitizePrompt>,
     pub resume: bool,
     pub concurrency: usize,
@@ -181,17 +182,18 @@ Defaults are:
 - `sanitize`, `map`, and `resume` are `false`.
 - `concurrency` is `8`; it bounds concurrent item work in web Fetch, Sanitize, and Map. Local Fetch is sequential and does not use it.
 - `source` is required by `new(source)`. Optional model and prompt fields are `None`.
+- `genai_client` is `None` unless supplied.
 - `include` and `exclude` are empty.
 
 Builder methods are grouped by purpose:
 
 - Fetch: `with_dest`, `with_fetch`, `with_include`, `append_include`, `append_includes`, `with_exclude`, `append_exclude`, `append_excludes`, `with_format`, `with_max_depth`, and `with_llms`.
-- AI stages: `with_sanitize`, `with_map`, `with_model`, `with_sanitize_model`, `with_map_model`, and `with_sanitize_prompt`.
+- AI stages: `with_sanitize`, `with_map`, `with_model`, `with_sanitize_model`, `with_map_model`, `with_genai_client`, and `with_sanitize_prompt`.
 - Workflow: `with_resume` and `with_concurrency`.
 
 `FetchFormat` has `Raw`, `Slim`, and `Md` variants. `Md` is the default. `SanitizePrompt` has `FilePath(SPath)` and `Content(String)` variants, with `SanitizePrompt::file` and `SanitizePrompt::content` constructors.
 
-The Sanitize model resolves from `sanitize_model`, then `model`. The Map model resolves from `map_model`, then `model`. Every enabled AI stage requires a nonempty resolved model. The default AI selector passes the resolved model to `genai`; an active selector can substitute a stub or custom client.
+The default AI selector passes the resolved model to `genai`. A client supplied through `ProcessContentOptions::with_genai_client` is used by the Real selector for both AI stages; when absent, a client is created as needed. An active Stub or Custom selector continues to override the Real client path.
 
 ## Core stages
 
