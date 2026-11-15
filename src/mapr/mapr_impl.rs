@@ -1,5 +1,5 @@
 use crate::mapr::{
-	ContentMapDocument, FileMapEntry, FileMapMetadata, JournalHeader, JournalRecord, MapConfig, PROMPT_VERSION,
+	ContentMapDocument, FileMapEntry, JournalHeader, JournalRecord, MapConfig, PROMPT_VERSION,
 	init_or_load_journal, is_text_mappable, parse_file_info, publish_content_map, remove_journal, render_file_prompt,
 	select_active_ai_client_with_genai_client,
 };
@@ -39,7 +39,6 @@ pub(crate) async fn execute_content_map(
 
 	let mut file_map = BTreeMap::new();
 	let mut pending_items = Vec::new();
-	let mut file_metadata = BTreeMap::new();
 	let mut has_failures = false;
 
 	for (item, id) in input.items.iter().zip(item_ids) {
@@ -56,19 +55,8 @@ pub(crate) async fn execute_content_map(
 				continue;
 			}
 		};
-		let source_hash = hash_bytes(&contents);
-		let source_metadata = std::fs::metadata(item.local_path.as_std_path()).ok();
-		let last_modified_unix_nanos = source_metadata
-			.and_then(|metadata| metadata.modified().ok())
-			.and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-			.and_then(|duration| u64::try_from(duration.as_nanos()).ok());
-		file_metadata.insert(
-			item.relative_path.clone(),
-			FileMapMetadata {
-				last_modified_unix_nanos,
-				source_hash: source_hash.clone(),
-			},
-		);
+		let hash = hash_bytes(&contents);
+		let mtime = item.local_path.meta().ok().map(|meta| meta.modified_epoch_us);
 
 		if !is_text_mappable(item.media_type.as_deref(), Path::new(&item.relative_path)) {
 			context.progress.item_skipped(id, ProcessStage::Map, None);
@@ -91,10 +79,13 @@ pub(crate) async fn execute_content_map(
 		};
 
 		if options.reuse_unchanged_records
-			&& let Some(cached_entry) = reuse_index.get_file(&item.relative_path, &source_hash)
+			&& let Some(cached_entry) = reuse_index.get_file(&item.relative_path, &hash)
 		{
 			context.progress.item_reused(id, ProcessStage::Map, None);
-			file_map.insert(item.relative_path.clone(), cached_entry.clone());
+			let mut entry = cached_entry.clone();
+			entry.hash = hash.clone();
+			entry.mtime = mtime;
+			file_map.insert(item.relative_path.clone(), entry);
 			continue;
 		}
 
@@ -102,7 +93,8 @@ pub(crate) async fn execute_content_map(
 			item.clone(),
 			id,
 			item.relative_path.clone(),
-			source_hash,
+			hash,
+			mtime,
 			content_str.to_string(),
 		));
 	}
@@ -113,14 +105,13 @@ pub(crate) async fn execute_content_map(
 		format_utc_timestamp(),
 		file_map.clone(),
 		BTreeMap::new(),
-	)
-	.with_file_metadata(file_metadata.clone());
+	);
 	publish_content_map(context.content_map.as_std_path(), &partial_document)?;
 
 	let ai_client = select_active_ai_client_with_genai_client(&options.model, context.genai_client.as_ref());
 	let tasks = pending_items
 		.into_iter()
-		.map(|(item, id, relative_path, source_hash, content)| {
+		.map(|(item, id, relative_path, hash, mtime, content)| {
 			let client = ai_client.clone();
 			let appender = appender.clone();
 			let progress = context.progress.clone();
@@ -139,7 +130,11 @@ pub(crate) async fn execute_content_map(
 
 				let result: std::result::Result<(FileMapEntry, Option<genai::chat::Usage>), String> = match ai_res {
 					Ok(response) => parse_file_info(&response.content)
-						.map(|entry| (entry, response.usage))
+						.map(|mut entry| {
+							entry.hash = hash.clone();
+							entry.mtime = mtime;
+							(entry, response.usage)
+						})
 						.map_err(|err| err.to_string()),
 					Err(err) => Err(err.to_string()),
 				};
@@ -147,7 +142,7 @@ pub(crate) async fn execute_content_map(
 				match result {
 					Ok((entry, usage)) => {
 						if let Err(error) =
-							appender.append(&JournalRecord::file_ok(&relative_path, &source_hash, entry.clone()))
+							appender.append(&JournalRecord::file_ok(&relative_path, &hash, entry.clone()))
 						{
 							progress.record_journal_error(ProcessStage::Map, &relative_path, error);
 						}
@@ -156,7 +151,7 @@ pub(crate) async fn execute_content_map(
 					}
 					Err(err_msg) => {
 						if let Err(error) =
-							appender.append(&JournalRecord::file_failed(&relative_path, &source_hash, &err_msg))
+							appender.append(&JournalRecord::file_failed(&relative_path, &hash, &err_msg))
 						{
 							progress.record_journal_error(ProcessStage::Map, &relative_path, error);
 						}
@@ -182,8 +177,7 @@ pub(crate) async fn execute_content_map(
 		format_utc_timestamp(),
 		file_map,
 		BTreeMap::new(),
-	)
-	.with_file_metadata(file_metadata);
+	);
 	publish_content_map(context.content_map.as_std_path(), &document)?;
 
 	if !options.retain_journal {

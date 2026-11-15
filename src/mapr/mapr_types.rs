@@ -27,6 +27,12 @@ pub struct FileMapEntry {
 	pub public_functions: Vec<String>,
 	/// Searchable subject labels.
 	pub topics: Vec<String>,
+	/// Hash of the source content this entry was generated from.
+	#[serde(default)]
+	pub hash: String,
+	/// Source modification time in Unix microseconds, when available.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub mtime: Option<i64>,
 }
 
 /// Guidance generated for a source directory.
@@ -38,15 +44,6 @@ pub struct FolderMapEntry {
 	pub when_to_use: String,
 	/// Searchable subject labels.
 	pub topics: Vec<String>,
-}
-
-/// Provenance information associated with a mapped source file.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct FileMapMetadata {
-	/// Source modification time in Unix nanoseconds, when available.
-	pub last_modified_unix_nanos: Option<u64>,
-	/// Hash identifying the source content used to generate the entry.
-	pub source_hash: String,
 }
 
 /// Serialized document written to `content-map.json`, carrying provenance metadata.
@@ -64,9 +61,6 @@ pub struct ContentMapDocument {
 	pub file_map: BTreeMap<String, FileMapEntry>,
 	/// Guidance indexed by source-relative directory path.
 	pub folder_map: BTreeMap<String, FolderMapEntry>,
-	#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-	/// Optional provenance metadata indexed by source-relative file path.
-	pub file_metadata: BTreeMap<String, FileMapMetadata>,
 }
 
 // endregion: --- Types
@@ -81,13 +75,12 @@ impl ContentMapDocument {
 		folder_map: BTreeMap<String, FolderMapEntry>,
 	) -> Self {
 		Self {
-			version: 1,
+			version: 2,
 			model: model.into(),
 			prompt_version,
 			generated_at: generated_at.into(),
 			file_map,
 			folder_map,
-			file_metadata: BTreeMap::new(),
 		}
 	}
 
@@ -105,11 +98,5 @@ impl ContentMapDocument {
 			content_map.file_map,
 			content_map.folder_map,
 		)
-	}
-
-	/// Replaces the document's file provenance metadata.
-	pub fn with_file_metadata(mut self, file_metadata: BTreeMap<String, FileMapMetadata>) -> Self {
-		self.file_metadata = file_metadata;
-		self
 	}
 }

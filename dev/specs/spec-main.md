@@ -272,7 +272,7 @@ Map analyzes the artifacts from the preceding stage directly. It does not create
 
 Pending items are processed with bounded scheduling: at most `concurrency` tasks are spawned at once, and a new task is spawned as each one finishes.
 
-The version 1 JSON document contains a provenance header, `file_map`, `folder_map`, and `file_metadata`. The internal per-file size limit is 200,000 bytes. The journal is version 1 NDJSON at `.tmp-refinr/content-map.journal.jsonl`; it has a header followed by file or folder success and failure records, though current Map execution records files only. Each record is serialized into one line buffer and written with a single `write_all` call, then flushed. Its fingerprint includes the model, prompt version, and input artifact root. With `resume` enabled, file entries are reused when the journal header matches and the input path and hash match. Incompatible journal headers are invalidated. With resume disabled, entries are not reused; a failure-free run clears the journal after publishing the map, while item failures leave records retained. Map journal append errors are reported through `ProcessContentOutput::journal_errors` and do not fail the item or stage.
+The version 2 JSON document contains a provenance header, `file_map`, and `folder_map`. The internal per-file size limit is 200,000 bytes. The journal is version 1 NDJSON at `.tmp-refinr/content-map.journal.jsonl`; it has a header followed by file or folder success and failure records, though current Map execution records files only. Each record is serialized into one line buffer and written with a single `write_all` call, then flushed. Its fingerprint includes the model, prompt version, and input artifact root. With `resume` enabled, file entries are reused when the journal header matches and the input path and hash match. Incompatible journal headers are invalidated. With resume disabled, entries are not reused; a failure-free run clears the journal after publishing the map, while item failures leave records retained. Map journal append errors are reported through `ProcessContentOutput::journal_errors` and do not fail the item or stage.
 
 The versioned Map prompt (`PROMPT_VERSION` is currently 2) supplies a file path and content and requires a `<FILE_INFO>` block containing JSON fields for `summary`, `when_to_use`, `public_types`, `public_functions`, and `topics`. The list fields accept arrays or comma-separated strings. Missing fields default to empty values, and Markdown fences around the JSON are accepted. Topic normalization retains at most seven nonempty topics and truncates each to three words. Missing tags and malformed JSON become `MissingTag` and `MalformedResponse` item failures.
 
@@ -462,7 +462,6 @@ pub struct ContentMapDocument {
     pub generated_at: String,
     pub file_map: BTreeMap<String, FileMapEntry>,
     pub folder_map: BTreeMap<String, FolderMapEntry>,
-    pub file_metadata: BTreeMap<String, FileMapMetadata>,
 }
 
 pub struct ContentMap {
@@ -476,6 +475,8 @@ pub struct FileMapEntry {
     pub public_types: Vec<String>,
     pub public_functions: Vec<String>,
     pub topics: Vec<String>,
+    pub hash: String,
+    pub mtime: Option<i64>,
 }
 
 pub struct FolderMapEntry {
@@ -483,14 +484,9 @@ pub struct FolderMapEntry {
     pub when_to_use: String,
     pub topics: Vec<String>,
 }
-
-pub struct FileMapMetadata {
-    pub last_modified_unix_nanos: Option<u64>,
-    pub source_hash: String,
-}
 ```
 
-The serialized `_content-map.json` contains a provenance header alongside `file_map`, `folder_map`, and `file_metadata`. File map and metadata keys are upstream artifact-relative paths. Metadata records the source modification time, when available, and the hash of the mapped artifact. `folder_map` is currently emitted as an empty map. The only published map is `<destination>/_content-map.json`.
+The serialized `_content-map.json` contains a provenance header alongside `file_map` and `folder_map`. File map keys are upstream artifact-relative paths. Each entry records the hash of the mapped artifact and its source modification time in Unix microseconds, when available. `folder_map` is currently emitted as an empty map. The only published map is `<destination>/_content-map.json`.
 
 ## Errors
 

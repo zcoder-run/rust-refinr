@@ -136,6 +136,8 @@ pub fn parse_file_info(response: &str) -> Result<FileMapEntry> {
 		public_types,
 		public_functions,
 		topics,
+		hash: String::new(),
+		mtime: None,
 	})
 }
 

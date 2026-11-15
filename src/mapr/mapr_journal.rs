@@ -54,7 +54,8 @@ pub struct JournalFileRecord {
 	pub path: String,
 
 	/// Hash of the source content used to generate the result.
-	pub source_hash: String,
+	#[serde(alias = "source_hash")]
+	pub hash: String,
 
 	/// Whether mapping succeeded or failed.
 	pub status: JournalRecordStatus,
@@ -75,7 +76,8 @@ pub struct JournalFolderRecord {
 	pub path: String,
 
 	/// Hash representing the folder source used to generate the result.
-	pub source_hash: String,
+	#[serde(alias = "source_hash")]
+	pub hash: String,
 
 	/// Whether mapping succeeded or failed.
 	pub status: JournalRecordStatus,
@@ -267,10 +269,10 @@ impl JournalRecord {
 	}
 
 	/// Creates a successful file record.
-	pub fn file_ok(path: impl Into<String>, source_hash: impl Into<String>, entry: FileMapEntry) -> Self {
+	pub fn file_ok(path: impl Into<String>, hash: impl Into<String>, entry: FileMapEntry) -> Self {
 		Self::File(JournalFileRecord {
 			path: path.into(),
-			source_hash: source_hash.into(),
+			hash: hash.into(),
 			status: JournalRecordStatus::Ok,
 			entry: Some(entry),
 			error: None,
@@ -278,10 +280,10 @@ impl JournalRecord {
 	}
 
 	/// Creates a failed file record.
-	pub fn file_failed(path: impl Into<String>, source_hash: impl Into<String>, error: impl Into<String>) -> Self {
+	pub fn file_failed(path: impl Into<String>, hash: impl Into<String>, error: impl Into<String>) -> Self {
 		Self::File(JournalFileRecord {
 			path: path.into(),
-			source_hash: source_hash.into(),
+			hash: hash.into(),
 			status: JournalRecordStatus::Failed,
 			entry: None,
 			error: Some(error.into()),
@@ -289,10 +291,10 @@ impl JournalRecord {
 	}
 
 	/// Creates a successful folder record.
-	pub fn folder_ok(path: impl Into<String>, source_hash: impl Into<String>, entry: FolderMapEntry) -> Self {
+	pub fn folder_ok(path: impl Into<String>, hash: impl Into<String>, entry: FolderMapEntry) -> Self {
 		Self::Folder(JournalFolderRecord {
 			path: path.into(),
-			source_hash: source_hash.into(),
+			hash: hash.into(),
 			status: JournalRecordStatus::Ok,
 			entry: Some(entry),
 			error: None,
@@ -300,10 +302,10 @@ impl JournalRecord {
 	}
 
 	/// Creates a failed folder record.
-	pub fn folder_failed(path: impl Into<String>, source_hash: impl Into<String>, error: impl Into<String>) -> Self {
+	pub fn folder_failed(path: impl Into<String>, hash: impl Into<String>, error: impl Into<String>) -> Self {
 		Self::Folder(JournalFolderRecord {
 			path: path.into(),
-			source_hash: source_hash.into(),
+			hash: hash.into(),
 			status: JournalRecordStatus::Failed,
 			entry: None,
 			error: Some(error.into()),
@@ -350,8 +352,8 @@ impl JournalReuseIndex {
 	}
 
 	/// Inserts or replaces a successful file entry.
-	pub fn record_file_ok(&mut self, path: impl Into<String>, source_hash: impl Into<String>, entry: FileMapEntry) {
-		self.file_entries.insert(path.into(), (source_hash.into(), entry));
+	pub fn record_file_ok(&mut self, path: impl Into<String>, hash: impl Into<String>, entry: FileMapEntry) {
+		self.file_entries.insert(path.into(), (hash.into(), entry));
 	}
 
 	/// Removes any cached file entry for the path.
@@ -360,8 +362,8 @@ impl JournalReuseIndex {
 	}
 
 	/// Inserts or replaces a successful folder entry.
-	pub fn record_folder_ok(&mut self, path: impl Into<String>, source_hash: impl Into<String>, entry: FolderMapEntry) {
-		self.folder_entries.insert(path.into(), (source_hash.into(), entry));
+	pub fn record_folder_ok(&mut self, path: impl Into<String>, hash: impl Into<String>, entry: FolderMapEntry) {
+		self.folder_entries.insert(path.into(), (hash.into(), entry));
 	}
 
 	/// Removes any cached folder entry for the path.
@@ -378,7 +380,7 @@ impl JournalReuseIndex {
 				if file_rec.status == JournalRecordStatus::Ok
 					&& let Some(entry) = &file_rec.entry
 				{
-					self.record_file_ok(&file_rec.path, &file_rec.source_hash, entry.clone());
+					self.record_file_ok(&file_rec.path, &file_rec.hash, entry.clone());
 				} else {
 					self.record_file_failed(&file_rec.path);
 				}
@@ -387,7 +389,7 @@ impl JournalReuseIndex {
 				if folder_rec.status == JournalRecordStatus::Ok
 					&& let Some(entry) = &folder_rec.entry
 				{
-					self.record_folder_ok(&folder_rec.path, &folder_rec.source_hash, entry.clone());
+					self.record_folder_ok(&folder_rec.path, &folder_rec.hash, entry.clone());
 				} else {
 					self.record_folder_failed(&folder_rec.path);
 				}
@@ -511,6 +513,7 @@ mod tests {
 			public_types: vec!["App".to_string()],
 			public_functions: vec!["main".to_string()],
 			topics: vec!["cli".to_string()],
+			..Default::default()
 		};
 		appender.append(&JournalRecord::file_ok(
 			"src/main.rs",
@@ -566,6 +569,7 @@ mod tests {
 			public_types: vec![],
 			public_functions: vec![],
 			topics: vec!["module".to_string()],
+			..Default::default()
 		};
 
 		index.record_file_ok("src/lib.rs", "hash-lib-v1", file_entry.clone());
@@ -601,6 +605,7 @@ mod tests {
 			public_types: vec![],
 			public_functions: vec![],
 			topics: vec![],
+			..Default::default()
 		};
 		appender.append(&JournalRecord::file_ok("src/lib.rs", "hash-v1", file_entry))?;
 
@@ -640,6 +645,7 @@ mod tests {
 			public_types: vec![],
 			public_functions: vec![],
 			topics: vec![],
+			..Default::default()
 		};
 		appender.append(&JournalRecord::file_ok(
 			"src/valid.rs",
@@ -671,6 +677,7 @@ mod tests {
 			public_types: vec![],
 			public_functions: vec![],
 			topics: vec![],
+			..Default::default()
 		};
 		recovered_appender.append(&JournalRecord::file_ok("src/next.rs", "hash-next", next_entry.clone()))?;
 
@@ -701,7 +708,7 @@ mod tests {
 			writeln!(file, "not valid json")?;
 			writeln!(
 				file,
-				"{{\"kind\":\"file\",\"path\":\"src/a.rs\",\"source_hash\":\"h\",\"status\":\"ok\"}}"
+				"{{\"kind\":\"file\",\"path\":\"src/a.rs\",\"hash\":\"h\",\"status\":\"ok\"}}"
 			)?;
 			file.flush()?;
 		}
@@ -734,6 +741,7 @@ mod tests {
 			public_types: vec![],
 			public_functions: vec![],
 			topics: vec![],
+			..Default::default()
 		};
 		appender.append(&JournalRecord::file_ok("src/a.rs", "hash-a", entry))?;
 

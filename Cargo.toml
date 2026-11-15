@@ -1,12 +1,12 @@
 [package]
 name = "refinr"
-version = "0.0.4-WIP"
+version = "0.0.4"
+publish = false # WIP. Comment/Delete for release
 description = "Optimize content for AI - Fetch, sanitize, and map content to make it more useful for AI."
 edition = "2024"
 license = "MIT OR Apache-2.0"
 keywords = ["coding-harness","coding-ai"]
 authors = ["Jeremy Chone"]
-homepage = "https://github.com/zcoder-run/rust-refinr"
 repository = "https://github.com/zcoder-run/rust-refinr"
 
 [lib]

@@ -141,18 +141,17 @@ async fn test_process_content_map_with_stub_publishes_output_and_content_map() -
 
 	let content_str = fs::read_to_string(content_map_path.as_std_path())?;
 	let document: ContentMapDocument = serde_json::from_str(&content_str)?;
-	assert_eq!(document.version, 1);
+	assert_eq!(document.version, 2);
 	assert_eq!(document.model, "stub-model");
 	assert_eq!(document.prompt_version, 2);
 	assert_eq!(document.file_map.len(), 2);
 	assert!(document.file_map.contains_key("intro.md"));
 	assert!(document.file_map.contains_key("code.rs"));
-	assert_eq!(document.file_metadata.len(), 4);
 	assert!(!destination.join("content-map.md").exists());
-	let intro_metadata = document.file_metadata.get("intro.md").ok_or("expected intro.md metadata")?;
-	assert!(intro_metadata.last_modified_unix_nanos.is_some());
-	assert!(!intro_metadata.source_hash.is_empty());
+	assert!(!content_str.contains("file_metadata"));
 	let intro_entry = document.file_map.get("intro.md").ok_or("expected intro.md entry")?;
+	assert!(!intro_entry.hash.is_empty());
+	assert!(intro_entry.mtime.is_some());
 	assert_eq!(intro_entry.topics, vec!["stub".to_string(), "test".to_string()]);
 	assert!(document.folder_map.is_empty());
 
@@ -298,15 +297,15 @@ async fn test_process_content_map_journal_reuse_on_second_run() -> Result<()> {
 	assert_eq!(document.file_map.len(), 1);
 	assert!(document.file_map.contains_key("intro.md"));
 	assert_eq!(document.file_map, first_document.file_map);
-	let first_metadata = first_document
-		.file_metadata
+	let first_entry = first_document
+		.file_map
 		.get("intro.md")
-		.ok_or("expected first intro.md metadata")?;
-	let second_metadata = document
-		.file_metadata
+		.ok_or("expected first intro.md entry")?;
+	let second_entry = document
+		.file_map
 		.get("intro.md")
-		.ok_or("expected second intro.md metadata")?;
-	assert_eq!(second_metadata.source_hash, first_metadata.source_hash);
+		.ok_or("expected second intro.md entry")?;
+	assert_eq!(second_entry.hash, first_entry.hash);
 
 	assert_eq!(second_output.stats.total_usage, None);
 
@@ -346,8 +345,8 @@ async fn test_process_content_map_copies_html_as_markdown() -> Result<()> {
 	let content_map_path = output.content_map_path.as_ref().ok_or("expected content_map_path")?;
 	let document: ContentMapDocument = serde_json::from_slice(&fs::read(content_map_path.as_std_path())?)?;
 	assert!(document.file_map.contains_key("index.md"));
-	let metadata = document.file_metadata.get("index.md").ok_or("expected HTML input metadata")?;
-	assert!(!metadata.source_hash.is_empty());
+	let entry = document.file_map.get("index.md").ok_or("expected HTML input entry")?;
+	assert!(!entry.hash.is_empty());
 	let journal_file = destination.join(".tmp-refinr").join("content-map.journal.jsonl");
 	let journal_content = fs::read_to_string(journal_file)?;
 	assert!(journal_content.lines().any(|line| line.contains(r#""path":"index.md""#)));
@@ -407,11 +406,11 @@ async fn test_process_content_map_publishes_recovered_entries_before_ai_work() -
 	let document: ContentMapDocument = serde_json::from_slice(&fs::read(content_map_path.as_std_path())?)?;
 	assert!(document.file_map.contains_key("intro.md"));
 	assert!(document.file_map.contains_key("new.md"));
-	let recovered_metadata = document
-		.file_metadata
+	let recovered_entry = document
+		.file_map
 		.get("intro.md")
-		.ok_or("expected recovered intro.md metadata")?;
-	assert!(!recovered_metadata.source_hash.is_empty());
+		.ok_or("expected recovered intro.md entry")?;
+	assert!(!recovered_entry.hash.is_empty());
 
 	set_active_ai_selector(None);
 	Ok(())
@@ -672,12 +671,12 @@ impl MaprAiClient for PartialMapCheckingAiClient {
 					"journal entry was not published before AI processing",
 				));
 			}
-			let Some(metadata) = document.file_metadata.get("intro.md") else {
+			let Some(entry) = document.file_map.get("intro.md") else {
 				return Err(refinr::Error::custom(
-					"journal metadata was not published before AI processing",
+					"journal entry was not published before AI processing",
 				));
 			};
-			if metadata.source_hash.is_empty() {
+			if entry.hash.is_empty() {
 				return Err(refinr::Error::custom("journal metadata is incomplete"));
 			}
 

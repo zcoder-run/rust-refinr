@@ -332,6 +332,8 @@ mod tests {
 				public_types: vec!["App".to_string()],
 				public_functions: vec!["main".to_string()],
 				topics: vec!["entry".to_string(), "cli".to_string()],
+				hash: "main-hash".to_string(),
+				mtime: Some(1_763_200_000_000_000),
 			},
 		);
 
@@ -350,11 +352,16 @@ mod tests {
 
 		let parsed: ContentMapDocument = serde_json::from_str(&saved_content)?;
 		assert_eq!(parsed, document);
-		assert_eq!(parsed.version, 1);
+		assert_eq!(parsed.version, 2);
 		assert_eq!(parsed.model, "mock-model");
 		assert_eq!(parsed.prompt_version, 1);
 		assert!(parsed.folder_map.is_empty());
 		assert_eq!(parsed.file_map.len(), 1);
+
+		let entry = parsed.file_map.get("src/main.rs").ok_or("expected src/main.rs entry")?;
+		assert_eq!(entry.hash, "main-hash");
+		assert_eq!(entry.mtime, Some(1_763_200_000_000_000));
+		assert!(!saved_content.contains("file_metadata"));
 
 		// Clean up
 		std::fs::remove_dir_all(&test_dir)?;
